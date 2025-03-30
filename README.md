@@ -1,0 +1,269 @@
+# MCP Gemini API 서버
+
+Google의 Gemini API를 활용한 다목적 AI 서버입니다. 텍스트 생성, 이미지 생성/편집, 비디오 분석, 웹 검색 등 다양한 기능을 제공합니다.
+
+## 주요 기능
+
+- 텍스트 생성 (gemini-2.0-flash)
+- 이미지 생성 및 편집 (gemini-2.0-flash-exp)
+- YouTube 비디오 분석
+- 웹 검색
+
+## 시작하기
+
+### 필수 요구사항
+
+- Node.js 18.0.0 이상
+- npm 또는 yarn
+- Google AI Studio API 키
+
+### 주요 의존성
+
+- @google/generative-ai: ^0.1.3 (Gemini API SDK)
+- @fastify/cors: ^8.5.0 (CORS 지원)
+- fastify: ^4.29.0 (웹 서버 프레임워크)
+- googleapis: ^148.0.0 (Google API 지원)
+- typescript: ^5.0.0
+- zod: ^3.24.2 (데이터 검증)
+- pino: ^8.21.0 (로깅)
+
+### 설치 방법
+
+1. 저장소 클론
+```bash
+git clone [repository-url]
+cd mcp_gemini
+```
+
+2. 의존성 설치
+```bash
+npm install
+```
+
+3. 환경 변수 설정
+`.env` 파일을 생성하고 다음 내용을 추가하세요:
+```
+GOOGLE_API_KEY=your_api_key_here
+```
+
+4. 빌드
+```bash
+npm run build
+```
+
+5. 서버 실행
+```bash
+# 개발 모드
+npm run dev
+
+# 프로덕션 모드
+npm run start
+```
+
+서버는 기본적으로 `http://0.0.0.0:8000`에서 실행됩니다.
+
+## 스크립트
+
+- `npm run build`: TypeScript 컴파일
+- `npm run start`: 프로덕션 모드로 서버 실행
+- `npm run dev`: 개발 모드로 서버 실행 (ts-node 사용)
+- `npm run test`: Jest를 사용한 테스트 실행
+- `npm run lint`: ESLint를 사용한 코드 검사
+- `npm run format`: Prettier를 사용한 코드 포맷팅
+
+## API 엔드포인트
+
+### 텍스트 생성
+- 엔드포인트: `/gem-generate`
+- 메소드: POST
+- 요청 본문:
+```json
+{
+  "prompt": "생성할 텍스트 프롬프트"
+}
+```
+
+### 이미지 생성
+- 엔드포인트: `/gem-generate-image`
+- 메소드: POST
+- 요청 본문:
+```json
+{
+  "prompt": "생성할 이미지 프롬프트"
+}
+```
+
+### 이미지 편집
+- 엔드포인트: `/gem-edit-image`
+- 메소드: POST
+- 요청 본문:
+```json
+{
+  "image": "base64 인코딩된 이미지",
+  "prompt": "편집 지시사항"
+}
+```
+
+### 비디오 분석
+- 엔드포인트: `/gem-analyze-video`
+- 메소드: POST
+- 요청 본문:
+```json
+{
+  "videoUrl": "YouTube 비디오 URL",
+  "query": "분석 질문"
+}
+```
+
+### 웹 검색
+- 엔드포인트: `/gem-search`
+- 메소드: POST
+- 요청 본문:
+```json
+{
+  "query": "검색어"
+}
+```
+
+## Claude 통합 가이드
+
+### JSON-RPC 요청 형식
+
+Claude에서 MCP Gemini API를 호출할 때는 다음과 같은 JSON-RPC 2.0 형식을 사용합니다:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": "unique-request-id",
+  "method": "METHOD_NAME",
+  "params": {
+    // 메소드별 파라미터
+  }
+}
+```
+
+### 메소드별 예시
+
+1. 텍스트 생성
+```json
+{
+  "jsonrpc": "2.0",
+  "id": "gen-1",
+  "method": "gem-generate",
+  "params": {
+    "prompt": "한국의 전통 음식에 대해 설명해주세요"
+  }
+}
+```
+
+2. 이미지 생성
+```json
+{
+  "jsonrpc": "2.0",
+  "id": "img-1",
+  "method": "gem-generate-image",
+  "params": {
+    "prompt": "한옥마을의 아름다운 풍경"
+  }
+}
+```
+
+3. 비디오 분석
+```json
+{
+  "jsonrpc": "2.0",
+  "id": "vid-1",
+  "method": "gem-analyze-video",
+  "params": {
+    "videoUrl": "https://youtube.com/watch?v=VIDEO_ID",
+    "query": "이 영상의 주요 내용을 요약해주세요"
+  }
+}
+```
+
+4. 웹 검색
+```json
+{
+  "jsonrpc": "2.0",
+  "id": "search-1",
+  "method": "gem-search",
+  "params": {
+    "query": "최신 인공지능 기술 동향"
+  }
+}
+```
+
+### 응답 형식
+
+모든 API 응답은 다음 형식을 따릅니다:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": "요청에서 보낸 ID",
+  "result": {
+    "content": "응답 내용",
+    // 메소드별 추가 필드
+  }
+}
+```
+
+### 오류 응답
+
+오류가 발생한 경우 다음 형식으로 응답합니다:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": "요청에서 보낸 ID",
+  "error": {
+    "code": 오류코드,
+    "message": "오류 메시지",
+    "data": {
+      // 추가 오류 정보 (옵션)
+    }
+  }
+}
+```
+
+## 오류 처리
+
+서버는 다음과 같은 상황에서 적절한 오류 응답을 반환합니다:
+
+- 400: 잘못된 요청 형식
+- 401: 인증 오류 (API 키 관련)
+- 500: 서버 내부 오류
+
+## 보안 고려사항
+
+- API 키는 반드시 환경 변수로 관리하세요
+- 프로덕션 환경에서는 적절한 보안 설정을 추가하세요
+- 민감한 정보는 로그에 기록하지 않도록 주의하세요
+
+## 문제 해결
+
+### 포트 충돌
+이미 8000번 포트가 사용 중인 경우:
+```bash
+# 기존 Node.js 프로세스 종료
+pkill -f "node"
+```
+
+### 서버 안정성
+서버가 예기치 않게 종료되는 경우:
+- PM2나 다른 프로세스 관리자 사용을 고려하세요
+- 로그를 확인하여 종료 원인을 파악하세요
+
+## 개발 가이드
+
+### 로깅
+- Pino 로거를 사용하여 구조화된 로깅을 구현했습니다
+- 개발 환경에서는 pino-pretty를 통해 가독성 있는 로그가 출력됩니다
+
+### 타입 안정성
+- TypeScript와 Zod를 사용하여 런타임 타입 안정성을 보장합니다
+- API 요청/응답에 대한 스키마 검증이 구현되어 있습니다
+
+## 라이선스
+
+이 프로젝트는 MIT 라이선스를 따릅니다. 
