@@ -5,13 +5,17 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
 
-// API 키 설정
-const API_KEY = 'AIzaSyA_NYLOkL3Wit7K3s4VPaqIRbFZzPlPcZM';
+// API 키를 환경 변수에서 가져옴
+const API_KEY = process.env.GOOGLE_API_KEY;
+if (!API_KEY) {
+  throw new Error('GOOGLE_API_KEY 환경 변수가 설정되지 않았습니다.');
+}
+
 const genAI = new GoogleGenerativeAI(API_KEY);
 
-// Gemini 2.0 Flash 모델 (텍스트 생성용)
+// 안정적인 Gemini Pro 모델 사용
 const model = genAI.getGenerativeModel({
-  model: "gemini-2.0-flash",
+  model: "gemini-pro",
 });
 
 // Gemini 1.5 Pro 모델 (이미지 생성 설명용)
@@ -31,28 +35,26 @@ const visionModel = genAI.getGenerativeModel({
 
 // 기본 생성 설정
 const defaultGenerationConfig = {
-  temperature: 1,
-  topP: 0.95,
+  temperature: 0.9,
+  topP: 0.8,
   topK: 40,
-  maxOutputTokens: 8192,
+  maxOutputTokens: 2048,
 };
 
 // 이미지 생성을 위한 설정
 const imageGenerationConfig = {
   temperature: 0.8,
-  topP: 0.95,
+  topP: 0.8,
   topK: 40,
-  maxOutputTokens: 8192,
-  responseModalities: ["Text", "Image"]
+  maxOutputTokens: 2048,
 };
 
 // 유튜브 분석을 위한 설정
 const youtubeGenerationConfig = {
-  temperature: 1,
-  topP: 0.95,
+  temperature: 0.7,
+  topP: 0.8,
   topK: 40,
-  maxOutputTokens: 8192,
-  responseMimeType: "text/plain",
+  maxOutputTokens: 2048,
 };
 
 // 확장된 타입 정의
@@ -100,7 +102,7 @@ interface GeneratedImageResponse {
 
 export const generateContent = async (prompt: string, options?: GenerateOptions): Promise<string> => {
   try {
-    logger.info({ prompt, options }, '콘텐츠 생성 시작');
+    logger.info({ prompt }, '콘텐츠 생성 시작');
     
     // 생성 구성 설정
     const generationConfig = {
@@ -111,13 +113,29 @@ export const generateContent = async (prompt: string, options?: GenerateOptions)
       ...(options?.topP !== undefined && { topP: options.topP }),
     };
     
-    // 모델 인스턴스 설정
-    const configuredModel = genAI.getGenerativeModel({
-      model: "gemini-2.0-flash",
-      generationConfig
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig,
+      safetySettings: [
+        {
+          category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+          threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+        },
+        {
+          category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+          threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+        },
+        {
+          category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+          threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+        },
+        {
+          category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+          threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+        },
+      ],
     });
-      
-    const result = await configuredModel.generateContent(prompt);
+
     const response = await result.response;
     logger.info('콘텐츠 생성 완료');
     return response.text();
@@ -157,7 +175,7 @@ const saveImage = async (imageData: string, savePath?: string): Promise<string> 
 // 이미지 생성 함수 (실제 이미지 생성)
 export const generateImage = async (prompt: string, options?: ImageGenerateOptions): Promise<GeneratedImageResponse> => {
   try {
-    logger.info({ prompt, options }, '이미지 생성 시작');
+    logger.info({ prompt }, '이미지 생성 시작');
     
     // 이미지 생성 설정
     const config = {
@@ -165,81 +183,39 @@ export const generateImage = async (prompt: string, options?: ImageGenerateOptio
       ...(options?.temperature !== undefined && { temperature: options.temperature }),
     };
     
-    // Gemini 2.0 Flash Experimental을 사용하여 이미지 생성
-    try {
-      const result = await imageGenerationModel.generateContent({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: config as any,
-      });
-      
-      let textResponse = "";
-      let imageData = "";
-      
-      // 응답에서 텍스트와 이미지 데이터 추출
-      if (result.response.candidates && result.response.candidates.length > 0) {
-        const candidate = result.response.candidates[0];
-        if (candidate.content && candidate.content.parts) {
-          for (const part of candidate.content.parts) {
-            if (part.text) {
-              textResponse += part.text + "\n";
-            } else if (part.inlineData) {
-              // @ts-ignore: TypeScript 타입 오류 무시
-              imageData = part.inlineData.data;
-            }
-          }
-        }
-      }
-      
-      if (imageData) {
-        // 이미지 저장
-        const imagePath = await saveImage(imageData, options?.save_path);
-        
-        logger.info('이미지 생성 완료');
-        return {
-          imageBase64: imageData,
-          imagePath: imagePath,
-          text: textResponse.trim()
-        };
-      } else {
-        throw new Error('이미지가 생성되지 않았습니다.');
-      }
-    } catch (genError) {
-      logger.error('이미지 생성 실패, 텍스트 설명으로 대체합니다:', genError);
-      
-      // 이미지 생성 실패 시, 기존 방식으로 이미지 설명 생성
-      const generationConfig = {
-        temperature: 0.7,
-        maxOutputTokens: 1024,
-      };
-      
-      // 프롬프트 개선
-      const enhancedPromptResult = await model.generateContent(`
-        다음 프롬프트를 사용하여 이미지를 생성하려고 합니다. 이미지 생성을 위한 상세한 프롬프트로 개선해주세요.
-        프롬프트: ${prompt}
-        ${options?.style ? `스타일: ${options.style}` : ''}
-        ${options?.resolution ? `해상도: ${options.resolution}` : ''}
-        ${options?.quality ? `품질: ${options.quality}` : ''}
-        ${options?.negative_prompt ? `제외할 요소: ${options.negative_prompt}` : ''}
-      `);
-      
-      const enhancedPrompt = await enhancedPromptResult.response.text();
-      
-      // 이미지가 어떻게 보일지 설명
-      const result = await imageModel.generateContent(`
-        다음 프롬프트로 생성한 이미지를 상세하게 설명해주세요:
-        "${enhancedPrompt}"
-        
-        이미지 설명은 매우 자세하게 해주시고, 마치 실제로 이미지를 보고 설명하는 것처럼 작성해주세요.
-        이미지의 중요한 요소, 구도, 색상, 분위기, 주요 대상 등을 포함해주세요.
-      `);
-      
-      const imageDescription = await result.response.text();
-      logger.info('이미지 설명 생성 완료');
-      
-      return {
-        text: `[이미지 생성 결과]\n\n${imageDescription}\n\n* 참고: 이미지 생성에 실패하여 이미지 대신 설명을 제공합니다.`
-      };
-    }
+    // Gemini Pro Vision을 사용하여 이미지 설명 생성
+    const result = await visionModel.generateContent({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: config,
+      safetySettings: [
+        {
+          category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+          threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+        },
+        {
+          category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+          threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+        },
+        {
+          category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+          threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+        },
+        {
+          category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+          threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+        },
+      ],
+    });
+
+    const response = await result.response;
+    const description = response.text();
+    
+    // 이미지 생성은 현재 Gemini에서 직접 지원하지 않으므로,
+    // 다른 이미지 생성 API를 사용하거나 사용자에게 안내 메시지를 제공
+    logger.info('이미지 설명 생성 완료');
+    return {
+      text: `현재 Gemini API는 직접적인 이미지 생성을 지원하지 않습니다. 다음은 요청하신 이미지에 대한 설명입니다:\n\n${description}`,
+    };
   } catch (error) {
     logger.error('이미지 생성 중 오류:', error);
     throw new Error('이미지 생성에 실패했습니다.');
@@ -253,84 +229,56 @@ export const editImage = async (
   options?: ImageEditOptions
 ): Promise<GeneratedImageResponse> => {
   try {
-    logger.info({ prompt, options }, '이미지 편집 시작');
+    logger.info({ prompt }, '이미지 편집 시작');
     
-    // 이미지 편집 설정
-    const config = {
-      ...imageGenerationConfig,
-      ...(options?.style !== undefined && { style: options.style }),
-    };
+    // 이미지를 base64에서 디코딩
+    const imageData = Buffer.from(imageBase64, 'base64');
     
-    // 요청 컨텐츠 구성
-    const contents = [
-      { role: "user", parts: [
-        { text: prompt || "이 이미지를 편집해주세요." },
-        { 
-          // @ts-ignore: TypeScript 타입 오류 무시
-          inlineData: {
-            mimeType: 'image/png',
-            data: imageBase64
-          }
-        }
-      ]}
-    ];
-    
-    try {
-      // Gemini 2.0 Flash Experimental을 사용하여 이미지 편집
-      const result = await imageGenerationModel.generateContent({
-        contents: contents,
-        generationConfig: config as any,
-      });
-      
-      let textResponse = "";
-      let imageData = "";
-      
-      // 응답에서 텍스트와 이미지 데이터 추출
-      if (result.response.candidates && result.response.candidates.length > 0) {
-        const candidate = result.response.candidates[0];
-        if (candidate.content && candidate.content.parts) {
-          for (const part of candidate.content.parts) {
-            if (part.text) {
-              textResponse += part.text + "\n";
-            } else if (part.inlineData) {
-              // @ts-ignore: TypeScript 타입 오류 무시
-              imageData = part.inlineData.data;
+    // Gemini Pro Vision을 사용하여 이미지 분석 및 편집 설명 생성
+    const result = await visionModel.generateContent({
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { text: prompt },
+            {
+              inlineData: {
+                mimeType: "image/jpeg",
+                data: imageBase64
+              }
             }
-          }
+          ]
         }
-      }
-      
-      if (imageData) {
-        // 이미지 저장
-        const imagePath = await saveImage(imageData, options?.save_path);
-        
-        logger.info('이미지 편집 완료');
-        return {
-          imageBase64: imageData,
-          imagePath: imagePath,
-          text: textResponse.trim()
-        };
-      } else {
-        throw new Error('이미지 편집이 실패했습니다.');
-      }
-    } catch (editError) {
-      logger.error('이미지 편집 실패, 텍스트 설명으로 대체합니다:', editError);
-      
-      // 이미지 편집 실패 시, 텍스트 설명 생성
-      const result = await imageModel.generateContent(`
-        다음과 같은 이미지 편집 요청이 있었습니다:
-        ${prompt}
-        
-        이 요청에 따라 이미지가 어떻게 변경되어야 하는지 상세하게 설명해주세요.
-      `);
-      
-      const editDescription = await result.response.text();
-      logger.info('이미지 편집 설명 생성 완료');
-      
-      return {
-        text: `[이미지 편집 결과]\n\n${editDescription}\n\n* 참고: 이미지 편집에 실패하여 편집 내용에 대한 설명을 제공합니다.`
-      };
-    }
+      ],
+      generationConfig: imageGenerationConfig,
+      safetySettings: [
+        {
+          category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+          threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+        },
+        {
+          category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+          threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+        },
+        {
+          category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+          threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+        },
+        {
+          category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+          threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+        },
+      ],
+    });
+
+    const response = await result.response;
+    const editDescription = response.text();
+    
+    logger.info('이미지 편집 설명 생성 완료');
+    return {
+      text: `현재 Gemini API는 직접적인 이미지 편집을 지원하지 않습니다. 다음은 요청하신 편집에 대한 설명입니다:\n\n${editDescription}`,
+      imageBase64: imageBase64  // 원본 이미지 반환
+    };
   } catch (error) {
     logger.error('이미지 편집 중 오류:', error);
     throw new Error('이미지 편집에 실패했습니다.');
