@@ -289,115 +289,76 @@ pkill -f "node"
 
 이 프로젝트는 MIT 라이선스를 따릅니다.
 
-## Smithery MCP 배포 가이드
+## CLINE MCP 마켓플레이스 등록 가이드
 
 ### 사전 준비사항
 
-1. Smithery 계정 및 액세스 토큰
-2. Smithery CLI 설치
-```bash
-npm install -g @smithery/cli
-```
+1. GitHub 저장소가 공개되어 있어야 합니다
+2. README.md 파일에 명확한 설치 및 설정 방법이 포함되어 있어야 합니다
+3. (선택사항) `llms-install.md` 파일을 통해 AI 에이전트를 위한 추가 설치 가이드를 제공할 수 있습니다
 
-### 배포 단계
+### 등록 절차
 
-1. Smithery에 로그인
-```bash
-smithery login
-```
+1. [CLINE MCP 마켓플레이스 저장소](https://github.com/cline/mcp-marketplace)에 새로운 이슈를 생성합니다
 
-2. MCP 프로젝트 생성
-```bash
-smithery create mcp-gemini
-```
+2. 이슈에 다음 정보를 포함합니다:
+   - **GitHub 저장소 URL:** https://github.com/techkwon/mcp-gemini
+   - **로고 이미지:** 400×400 크기의 PNG 파일
+   - **추가 이유:** 이 MCP 서버가 CLINE 사용자들에게 제공할 수 있는 가치
+   예시:
+   ```markdown
+   ## MCP Gemini 서버 등록 요청
+   
+   ### GitHub 저장소
+   https://github.com/techkwon/mcp-gemini
+   
+   ### 주요 기능
+   - Gemini API를 활용한 텍스트 생성
+   - 이미지 생성 및 편집 (gemini-2.0-flash-exp 모델 사용)
+   - YouTube 비디오 콘텐츠 분석
+   - 웹 검색 기능
+   
+   ### 사용자 이점
+   - 최신 Gemini 모델을 MCP 프로토콜을 통해 쉽게 활용
+   - 다양한 미디어 형식(텍스트, 이미지, 비디오) 처리 가능
+   - 명확한 JSON-RPC 인터페이스로 쉬운 통합
+   - 상세한 문서화와 예제 제공
+   ```
 
-3. 프로젝트 설정
-`smithery.json` 파일을 생성하고 다음 내용을 추가합니다:
-```json
-{
-  "name": "mcp-gemini",
-  "version": "1.0.0",
-  "type": "service",
-  "build": {
-    "dockerfile": "Dockerfile"
-  },
-  "env": {
-    "GOOGLE_API_KEY": {
-      "required": true,
-      "description": "Google AI Studio API 키"
-    }
-  },
-  "ports": {
-    "8000": "http"
-  }
-}
-```
+3. CLINE이 README.md만으로 서버를 성공적으로 설치할 수 있는지 테스트합니다
 
-4. Dockerfile 생성
-```dockerfile
-FROM node:18-alpine
+### 승인 절차
 
-WORKDIR /app
+1. CLINE 팀이 제출된 MCP 서버를 검토합니다
+2. 보안 및 안정성 검증을 진행합니다
+3. 승인되면 마켓플레이스에 등록되어 모든 CLINE 사용자가 접근할 수 있게 됩니다
 
-COPY package*.json ./
-RUN npm install
+### 설치 가이드 최적화
 
-COPY . .
-RUN npm run build
+`llms-install.md` 파일을 생성하여 AI 에이전트를 위한 추가 설치 가이드를 제공할 수 있습니다:
 
-EXPOSE 8000
-CMD ["npm", "start"]
-```
+```markdown
+# MCP Gemini 서버 설치 가이드 (AI 에이전트용)
 
-5. 배포
-```bash
-smithery deploy
-```
+## 환경 요구사항
+- Node.js 18.0.0 이상
+- npm 또는 yarn
+- Google AI Studio API 키
 
-### Smithery MCP 설정
+## 설치 단계
+1. 저장소 클론
+2. 의존성 설치: `npm install`
+3. 환경 변수 설정: GOOGLE_API_KEY 추가
+4. 빌드: `npm run build`
+5. 서버 실행: `npm run start`
 
-Smithery MCP에서 서비스가 배포된 후, Claude 데스크톱 앱의 설정에서 다음과 같이 URL을 업데이트합니다:
+## 설정 검증
+- 8000번 포트 사용 가능 여부 확인
+- API 키 유효성 검증
+- CORS 설정 확인
 
-```json
-{
-  "apis": [
-    {
-      "name": "MCP Gemini",
-      "url": "https://mcp-gemini.your-smithery-domain.com",  // Smithery에서 제공하는 도메인으로 변경
-      "methods": [
-        // ... 기존 메소드 설정 ...
-      ]
-    }
-  ]
-}
-```
-
-### 환경 변수 설정
-
-Smithery 대시보드에서 다음 환경 변수를 설정합니다:
-
-1. `GOOGLE_API_KEY`: Google AI Studio API 키
-2. `NODE_ENV`: "production"
-
-### 모니터링 및 로그
-
-- Smithery 대시보드에서 서비스 상태 모니터링
-- 로그 확인: `smithery logs mcp-gemini`
-- 메트릭 확인: Smithery 대시보드의 메트릭스 탭
-
-### 문제 해결
-
-1. 배포 실패 시
-```bash
-smithery logs mcp-gemini --tail
-```
-
-2. 서비스 재시작
-```bash
-smithery restart mcp-gemini
-```
-
-3. 설정 업데이트
-```bash
-smithery update mcp-gemini
+## 문제 해결
+- 포트 충돌 시 해결 방법
+- API 키 오류 해결 방법
+- 일반적인 설치 문제 해결 가이드
 ``` 
