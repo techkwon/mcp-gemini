@@ -125,72 +125,94 @@ npm run start
 }
 ```
 
-## Claude 통합 가이드
+## Claude 데스크톱 앱 통합 가이드
 
-### JSON-RPC 요청 형식
+### 설정 파일 위치
+Claude 데스크톱 앱의 설정 파일은 다음 경로에 위치합니다:
+- Windows: `%APPDATA%/Claude/config.json`
+- macOS: `~/Library/Application Support/Claude/config.json`
 
-Claude에서 MCP Gemini API를 호출할 때는 다음과 같은 JSON-RPC 2.0 형식을 사용합니다:
+### JSON 설정 예시
 
 ```json
 {
-  "jsonrpc": "2.0",
-  "id": "unique-request-id",
-  "method": "METHOD_NAME",
-  "params": {
-    // 메소드별 파라미터
-  }
+  "apis": [
+    {
+      "name": "MCP Gemini",
+      "url": "http://localhost:8000",
+      "methods": [
+        {
+          "name": "텍스트 생성",
+          "method": "gem-generate",
+          "template": {
+            "jsonrpc": "2.0",
+            "id": "{uuid}",
+            "method": "gem-generate",
+            "params": {
+              "prompt": "{input}"
+            }
+          }
+        },
+        {
+          "name": "이미지 생성",
+          "method": "gem-generate-image",
+          "template": {
+            "jsonrpc": "2.0",
+            "id": "{uuid}",
+            "method": "gem-generate-image",
+            "params": {
+              "prompt": "{input}"
+            }
+          }
+        },
+        {
+          "name": "비디오 분석",
+          "method": "gem-analyze-video",
+          "template": {
+            "jsonrpc": "2.0",
+            "id": "{uuid}",
+            "method": "gem-analyze-video",
+            "params": {
+              "videoUrl": "{input}",
+              "query": "이 영상의 주요 내용을 요약해주세요"
+            }
+          }
+        },
+        {
+          "name": "웹 검색",
+          "method": "gem-search",
+          "template": {
+            "jsonrpc": "2.0",
+            "id": "{uuid}",
+            "method": "gem-search",
+            "params": {
+              "query": "{input}"
+            }
+          }
+        }
+      ]
+    }
+  ]
 }
 ```
 
-### 메소드별 예시
+### 변수 설명
 
-1. 텍스트 생성
-```json
-{
-  "jsonrpc": "2.0",
-  "id": "gen-1",
-  "method": "gem-generate",
-  "params": {
-    "prompt": "한국의 전통 음식에 대해 설명해주세요"
-  }
-}
+- `{uuid}`: 자동으로 생성되는 고유 요청 ID
+- `{input}`: Claude 채팅창에 입력한 텍스트
+
+### 사용 방법
+
+1. Claude 데스크톱 앱의 설정 파일을 엽니다.
+2. 위의 JSON 설정을 기존 설정에 추가합니다.
+3. Claude 데스크톱 앱을 재시작합니다.
+4. 채팅창에서 다음과 같이 사용할 수 있습니다:
+
 ```
-
-2. 이미지 생성
-```json
-{
-  "jsonrpc": "2.0",
-  "id": "img-1",
-  "method": "gem-generate-image",
-  "params": {
-    "prompt": "한옥마을의 아름다운 풍경"
-  }
-}
-```
-
-3. 비디오 분석
-```json
-{
-  "jsonrpc": "2.0",
-  "id": "vid-1",
-  "method": "gem-analyze-video",
-  "params": {
-    "videoUrl": "https://youtube.com/watch?v=VIDEO_ID",
-    "query": "이 영상의 주요 내용을 요약해주세요"
-  }
-}
-```
-
-4. 웹 검색
-```json
-{
-  "jsonrpc": "2.0",
-  "id": "search-1",
-  "method": "gem-search",
-  "params": {
-    "query": "최신 인공지능 기술 동향"
-  }
-}
+@MCP Gemini.텍스트 생성 한국의 전통 음식에 대해 설명해주세요
+@MCP Gemini.이미지 생성 한옥마을의 아름다운 풍경
+@MCP Gemini.비디오 분석 https://youtube.com/watch?v=VIDEO_ID
+@MCP Gemini.웹 검색 최신 인공지능 기술 동향
 ```
 
 ### 응답 형식
@@ -202,8 +224,7 @@ Claude에서 MCP Gemini API를 호출할 때는 다음과 같은 JSON-RPC 2.0 �
   "jsonrpc": "2.0",
   "id": "요청에서 보낸 ID",
   "result": {
-    "content": "응답 내용",
-    // 메소드별 추가 필드
+    "content": "응답 내용"
   }
 }
 ```
@@ -220,7 +241,7 @@ Claude에서 MCP Gemini API를 호출할 때는 다음과 같은 JSON-RPC 2.0 �
     "code": 오류코드,
     "message": "오류 메시지",
     "data": {
-      // 추가 오류 정보 (옵션)
+      "details": "상세 오류 정보"
     }
   }
 }
