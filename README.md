@@ -287,4 +287,117 @@ pkill -f "node"
 
 ## 라이선스
 
-이 프로젝트는 MIT 라이선스를 따릅니다. 
+이 프로젝트는 MIT 라이선스를 따릅니다.
+
+## Smithery MCP 배포 가이드
+
+### 사전 준비사항
+
+1. Smithery 계정 및 액세스 토큰
+2. Smithery CLI 설치
+```bash
+npm install -g @smithery/cli
+```
+
+### 배포 단계
+
+1. Smithery에 로그인
+```bash
+smithery login
+```
+
+2. MCP 프로젝트 생성
+```bash
+smithery create mcp-gemini
+```
+
+3. 프로젝트 설정
+`smithery.json` 파일을 생성하고 다음 내용을 추가합니다:
+```json
+{
+  "name": "mcp-gemini",
+  "version": "1.0.0",
+  "type": "service",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "env": {
+    "GOOGLE_API_KEY": {
+      "required": true,
+      "description": "Google AI Studio API 키"
+    }
+  },
+  "ports": {
+    "8000": "http"
+  }
+}
+```
+
+4. Dockerfile 생성
+```dockerfile
+FROM node:18-alpine
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm install
+
+COPY . .
+RUN npm run build
+
+EXPOSE 8000
+CMD ["npm", "start"]
+```
+
+5. 배포
+```bash
+smithery deploy
+```
+
+### Smithery MCP 설정
+
+Smithery MCP에서 서비스가 배포된 후, Claude 데스크톱 앱의 설정에서 다음과 같이 URL을 업데이트합니다:
+
+```json
+{
+  "apis": [
+    {
+      "name": "MCP Gemini",
+      "url": "https://mcp-gemini.your-smithery-domain.com",  // Smithery에서 제공하는 도메인으로 변경
+      "methods": [
+        // ... 기존 메소드 설정 ...
+      ]
+    }
+  ]
+}
+```
+
+### 환경 변수 설정
+
+Smithery 대시보드에서 다음 환경 변수를 설정합니다:
+
+1. `GOOGLE_API_KEY`: Google AI Studio API 키
+2. `NODE_ENV`: "production"
+
+### 모니터링 및 로그
+
+- Smithery 대시보드에서 서비스 상태 모니터링
+- 로그 확인: `smithery logs mcp-gemini`
+- 메트릭 확인: Smithery 대시보드의 메트릭스 탭
+
+### 문제 해결
+
+1. 배포 실패 시
+```bash
+smithery logs mcp-gemini --tail
+```
+
+2. 서비스 재시작
+```bash
+smithery restart mcp-gemini
+```
+
+3. 설정 업데이트
+```bash
+smithery update mcp-gemini
+``` 
