@@ -1,11 +1,11 @@
 # MCP Gemini API 서버
 
-Google의 Gemini API를 활용한 다목적 AI 서버입니다. 텍스트 생성, 이미지 생성/편집, 비디오 분석, 웹 검색 등 다양한 기능을 제공합니다.
+Cursor와 Claude를 위한 Google Gemini API 서버입니다. 텍스트 생성, 이미지 분석, 비디오 분석 등 Gemini의 다양한 기능을 제공합니다.
 
 ## 주요 기능
 
-- 텍스트 생성 (gemini-2.0-flash)
-- 이미지 생성 및 편집 (gemini-2.0-flash-exp)
+- 텍스트 생성 (gemini-2.0-flash 모델 사용)
+- 이미지 생성 및 분석
 - YouTube 비디오 분석
 - 웹 검색
 
@@ -15,9 +15,152 @@ Google의 Gemini API를 활용한 다목적 AI 서버입니다. 텍스트 생성
 
 - Node.js 18.0.0 이상
 - npm 또는 yarn
-- Google AI Studio API 키
+- Google API 키 (Gemini API 접근용)
 
-### 주요 의존성
+### 설치
+
+```bash
+# 저장소 클론
+git clone https://github.com/techkwon/mcp-gemini.git
+cd mcp-gemini
+
+# 의존성 설치
+npm install
+```
+
+### 환경 설정
+
+1. `config.ts` 파일에 Google API 키 설정:
+
+```typescript
+export default {
+  googleApiKey: "your_api_key_here",
+  // 기타 설정...
+};
+```
+
+### 빌드 및 실행
+
+```bash
+# TypeScript 빌드
+npm run build
+
+# 서버 시작 (PM2 사용)
+npm start
+
+# 개발 모드로 실행
+npm run dev
+```
+
+### PM2 서버 관리
+
+서버는 PM2를 통해 자동으로 관리됩니다. 다음 명령어로 서버를 관리할 수 있습니다:
+
+```bash
+# 서버 상태 확인
+npm run status
+
+# 서버 로그 확인
+npm run logs
+
+# 서버 중지
+npm run stop
+
+# 서버 재시작
+npm run restart
+
+# 시스템 재시작 시 자동 실행 설정
+pm2 startup
+pm2 save
+```
+
+## Cursor/Claude 연동
+
+### MCP 설정
+
+`~/.cursor/mcp.json` 파일에 다음 설정을 추가하세요:
+
+```json
+{
+  "github.com/techkwon/mcp-gemini": {
+    "command": "npm",
+    "args": ["start"],
+    "cwd": "<프로젝트_경로>",
+    "env": {
+      "NODE_ENV": "production"
+    },
+    "disabled": false,
+    "autoStart": true,
+    "autoApprove": [
+      "gem-generate",
+      "gem-generate-image",
+      "gem-analyze-video",
+      "gem-search"
+    ]
+  }
+}
+```
+
+### API 엔드포인트
+
+- `/gem-generate`: 텍스트 생성
+- `/gem-generate-image`: 이미지 생성/분석
+- `/gem-analyze-video`: YouTube 비디오 분석
+- `/gem-search`: 웹 검색
+
+## 주요 업데이트
+
+### 최신 버전 (2024-03)
+- PM2를 통한 서버 자동화 구현
+- gemini-2.0-flash 모델로 통일
+- 자동 재시작 및 오류 복구 기능 추가
+- 환경 설정 개선
+
+### 이전 버전
+- YouTube 비디오 분석 기능 추가
+- 이미지 생성/분석 기능 개선
+- 웹 검색 기능 추가
+
+## 문제 해결
+
+### 일반적인 문제
+
+1. **서버가 시작되지 않는 경우**
+   ```bash
+   # PM2 로그 확인
+   npm run logs
+   
+   # PM2 프로세스 상태 확인
+   npm run status
+   ```
+
+2. **API 키 오류**
+   - `config.ts` 파일에서 API 키가 올바르게 설정되었는지 확인
+   - Gemini API 할당량 및 권한 확인
+
+3. **메모리 사용량 문제**
+   - `ecosystem.config.js`에서 메모리 제한 설정 확인
+   - PM2 모니터링으로 메모리 사용량 추적
+
+## 기여하기
+
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the Branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## 라이선스
+
+이 프로젝트는 MIT 라이선스를 따릅니다. 자세한 내용은 [LICENSE](LICENSE) 파일을 참조하세요.
+
+## 연락처
+
+프로젝트 관리자: techkwon
+이메일: techkwon@example.com
+프로젝트 링크: [https://github.com/techkwon/mcp-gemini](https://github.com/techkwon/mcp-gemini)
+
+## 주요 의존성
 
 - @google/generative-ai: ^0.1.3 (Gemini API SDK)
 - @fastify/cors: ^8.5.0 (CORS 지원)
@@ -26,104 +169,6 @@ Google의 Gemini API를 활용한 다목적 AI 서버입니다. 텍스트 생성
 - typescript: ^5.0.0
 - zod: ^3.24.2 (데이터 검증)
 - pino: ^8.21.0 (로깅)
-
-### 설치 방법
-
-1. 저장소 클론
-```bash
-git clone [repository-url]
-cd mcp_gemini
-```
-
-2. 의존성 설치
-```bash
-npm install
-```
-
-3. 환경 변수 설정
-`.env` 파일을 생성하고 다음 내용을 추가하세요:
-```
-GOOGLE_API_KEY=your_api_key_here
-```
-
-4. 빌드
-```bash
-npm run build
-```
-
-5. 서버 실행
-```bash
-# 개발 모드
-npm run dev
-
-# 프로덕션 모드
-npm run start
-```
-
-서버는 기본적으로 `http://0.0.0.0:8000`에서 실행됩니다.
-
-## 스크립트
-
-- `npm run build`: TypeScript 컴파일
-- `npm run start`: 프로덕션 모드로 서버 실행
-- `npm run dev`: 개발 모드로 서버 실행 (ts-node 사용)
-- `npm run test`: Jest를 사용한 테스트 실행
-- `npm run lint`: ESLint를 사용한 코드 검사
-- `npm run format`: Prettier를 사용한 코드 포맷팅
-
-## API 엔드포인트
-
-### 텍스트 생성
-- 엔드포인트: `/gem-generate`
-- 메소드: POST
-- 요청 본문:
-```json
-{
-  "prompt": "생성할 텍스트 프롬프트"
-}
-```
-
-### 이미지 생성
-- 엔드포인트: `/gem-generate-image`
-- 메소드: POST
-- 요청 본문:
-```json
-{
-  "prompt": "생성할 이미지 프롬프트"
-}
-```
-
-### 이미지 편집
-- 엔드포인트: `/gem-edit-image`
-- 메소드: POST
-- 요청 본문:
-```json
-{
-  "image": "base64 인코딩된 이미지",
-  "prompt": "편집 지시사항"
-}
-```
-
-### 비디오 분석
-- 엔드포인트: `/gem-analyze-video`
-- 메소드: POST
-- 요청 본문:
-```json
-{
-  "videoUrl": "YouTube 비디오 URL",
-  "query": "분석 질문"
-}
-```
-
-### 웹 검색
-- 엔드포인트: `/gem-search`
-- 메소드: POST
-- 요청 본문:
-```json
-{
-  "query": "검색어"
-}
-```
 
 ## Claude 데스크톱 앱 통합 가이드
 
@@ -284,10 +329,6 @@ pkill -f "node"
 ### 타입 안정성
 - TypeScript와 Zod를 사용하여 런타임 타입 안정성을 보장합니다
 - API 요청/응답에 대한 스키마 검증이 구현되어 있습니다
-
-## 라이선스
-
-이 프로젝트는 MIT 라이선스를 따릅니다.
 
 ## CLINE MCP 마켓플레이스 등록 가이드
 
